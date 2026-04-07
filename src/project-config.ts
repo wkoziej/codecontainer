@@ -28,6 +28,9 @@ export const ProjectConfigSchema = z.object({
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 
+export const VALID_RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"] as const;
+export type RestartPolicy = typeof VALID_RESTART_POLICIES[number];
+
 export function loadProjectConfig(projectPath: string): ProjectConfig | null {
   const configPath = path.join(projectPath, CONFIG_FILENAME);
 

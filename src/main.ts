@@ -23,6 +23,7 @@ import { checkRuntime } from "./docker";
 import { loadSettings, saveSettings } from "./config";
 import { ensureMountsFile } from "./mounts";
 import type { K8sOverrides } from "./k8s";
+import { VALID_RESTART_POLICIES, type RestartPolicy } from "./project-config";
 
 const TOS = `
 \x1b[33m⚠️  Security Advisory:\x1b[0m
@@ -155,9 +156,15 @@ async function main(): Promise<void> {
           case "--cmd":
             options.cmd = args[++i];
             break;
-          case "--restart":
-            options.restart = args[++i];
+          case "--restart": {
+            const restartVal = args[++i];
+            if (!restartVal || !VALID_RESTART_POLICIES.includes(restartVal as RestartPolicy)) {
+              printError(`Invalid restart policy: "${restartVal}". Valid: ${VALID_RESTART_POLICIES.join(", ")}`);
+              process.exit(1);
+            }
+            options.restart = restartVal as RestartPolicy;
             break;
+          }
           case "--k8s":
             options.k8s = true;
             break;
@@ -205,9 +212,15 @@ async function main(): Promise<void> {
           case "--cmd":
             options.cmd = args[++i];
             break;
-          case "--restart":
-            options.restart = args[++i];
+          case "--restart": {
+            const restartVal = args[++i];
+            if (!restartVal || !VALID_RESTART_POLICIES.includes(restartVal as RestartPolicy)) {
+              printError(`Invalid restart policy: "${restartVal}". Valid: ${VALID_RESTART_POLICIES.join(", ")}`);
+              process.exit(1);
+            }
+            options.restart = restartVal as RestartPolicy;
             break;
+          }
           case "--k8s":
             options.k8s = true;
             break;

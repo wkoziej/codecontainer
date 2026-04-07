@@ -9,7 +9,7 @@ import { loadSettings } from "./config";
 import { getAgentMounts, getCommonMounts, loadUserMounts } from "./mounts";
 import { loadFlags } from "./flags";
 import { CLI_BIN, isAppleContainer, isPodman, runtimeDisplayName } from "./runtime";
-import type { ProjectConfig } from "./project-config";
+import type { ProjectConfig, RestartPolicy } from "./project-config";
 
 export const IMAGE_NAME = "code-container";
 export const IMAGE_TAG = "latest";
@@ -198,7 +198,7 @@ export function stopContainer(containerName: string): void {
   }
 }
 
-export function startContainer(containerName: string, restartPolicy?: string): void {
+export function startContainer(containerName: string, restartPolicy?: RestartPolicy): void {
   spawnSync(CLI_BIN, ["start", containerName], { stdio: "inherit" });
 
   // Restore restart policy after start (stopContainer resets it to "no")
@@ -235,8 +235,7 @@ export async function findAvailablePort(preferred: number, range: number = 100):
 
 export interface ContainerCreateOptions {
   cmd?: string;
-  restart?: string;
-  secrets?: Array<{ name: string; file: string }>;
+  restart?: RestartPolicy;
 }
 
 export async function createNewContainer(
@@ -319,7 +318,7 @@ export async function createNewContainer(
   }
 
   // Secrets as read-only volume mounts
-  const secrets = headlessOptions?.secrets ?? projectConfig?.secrets;
+  const secrets = projectConfig?.secrets;
   if (secrets && secrets.length > 0) {
     if (isAppleContainer()) {
       printWarning("secrets are not supported on Apple Container, skipping");
