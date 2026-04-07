@@ -134,8 +134,8 @@ RUN if [ -s /tmp/extra_packages.apt ]; then \
     fi
 
 # Entrypoint scripts for SSH setup and git safe.directory on every start
-COPY fix-ssh.sh /usr/local/bin/fix-ssh.sh
-COPY codecontainer-entrypoint.sh /usr/local/bin/codecontainer-entrypoint.sh
+COPY scripts/fix-ssh.sh /usr/local/bin/fix-ssh.sh
+COPY scripts/codecontainer-entrypoint.sh /usr/local/bin/codecontainer-entrypoint.sh
 RUN chmod +x /usr/local/bin/fix-ssh.sh /usr/local/bin/codecontainer-entrypoint.sh
 
 ENTRYPOINT ["codecontainer-entrypoint.sh"]
