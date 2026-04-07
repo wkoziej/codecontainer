@@ -40,7 +40,7 @@ import {
 } from "./config";
 import { AGENTS, applyPermissions } from "./agents";
 import { selectAndExportCerts, hasCerts } from "./certs";
-import { loadProjectConfig, hashProjectConfigFile, confirmProjectConfig } from "./project-config";
+import { loadProjectConfig, hashProjectConfigFile, confirmProjectConfig, type RestartPolicy } from "./project-config";
 import { getContainerLabel, execInContainer } from "./docker";
 import {
   type K8sOverrides,
@@ -200,7 +200,7 @@ function fixSshOwnership(containerName: string): void {
 
 export interface RunContainerOptions {
   cmd?: string;
-  restart?: string;
+  restart?: RestartPolicy;
   headless?: boolean;
 }
 
@@ -237,6 +237,11 @@ export async function runContainer(projectPath: string, cliOptions?: RunContaine
   const restart = cliOptions?.restart ?? projectConfig?.restart;
   const headless = !!(cliOptions?.headless || cmd);
 
+  if (headless && !cmd) {
+    printError("--headless requires a cmd (via --cmd flag or cmd in .codecontainer.json)");
+    process.exit(1);
+  }
+
   // --cmd on existing container: prompt recreate (Docker can't change CMD after create)
   if (cliOptions?.cmd && (containerRunning(containerName) || containerExists(containerName))) {
     printWarning("--cmd passed but container already exists with a different CMD.");
@@ -249,7 +254,7 @@ export async function runContainer(projectPath: string, cliOptions?: RunContaine
     } else {
       printInfo("Keeping existing container. --cmd ignored.");
       // Continue with existing container (cmd from CLI ignored)
-      return attachOrRunExisting(containerName, projectName, projectConfig, headless, cmd, restart);
+      return attachOrRunExisting(containerName, projectName, projectConfig, { headless, restart });
     }
   }
 
@@ -264,18 +269,14 @@ export async function runContainer(projectPath: string, cliOptions?: RunContaine
       removeContainer(containerName);
       // Fall through to create new container
     } else {
-      return attachOrRunExisting(containerName, projectName, projectConfig, headless, cmd, restart);
+      return attachOrRunExisting(containerName, projectName, projectConfig, { headless, cmd, restart });
     }
   }
 
   printInfo(`Creating new container: ${containerName}`);
   printInfo(`Project: ${projectPath}`);
 
-  const headlessOptions: ContainerCreateOptions = {
-    cmd,
-    restart,
-    secrets: cliOptions?.cmd ? projectConfig?.secrets : undefined,
-  };
+  const headlessOptions: ContainerCreateOptions = { cmd, restart };
 
   if (!(await createNewContainer(containerName, projectName, projectPath, projectConfig, headlessOptions))) {
     printError("Failed to create container");
@@ -304,13 +305,11 @@ async function attachOrRunExisting(
   containerName: string,
   projectName: string,
   projectConfig: ReturnType<typeof loadProjectConfig>,
-  headless: boolean,
-  cmd: string | undefined,
-  restart: string | undefined,
+  options: RunContainerOptions,
 ): Promise<void> {
   if (!containerRunning(containerName)) {
     printInfo(`Starting existing container: ${containerName}`);
-    startContainer(containerName, restart);
+    startContainer(containerName, options.restart);
     injectGitConfigIntoContainer(containerName);
   } else {
     printInfo(`Container '${containerName}' is already running`);
@@ -327,9 +326,9 @@ async function attachOrRunExisting(
   ]);
   fixSshOwnership(containerName);
 
-  if (headless) {
+  if (options.headless || options.cmd) {
     printInfo(`Container '${containerName}' is running in headless mode.`);
-    printInfo(`CMD: ${cmd}`);
+    printInfo(`CMD: ${options.cmd}`);
     printInfo(`Logs: docker logs -f ${containerName}`);
 
     const attach = await promptYesNo("Attach interactive shell?");
